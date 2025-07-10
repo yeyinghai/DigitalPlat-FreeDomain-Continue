@@ -1,43 +1,52 @@
 # renew.py
+# 最后更新时间: 2025-07-09
+# 这是一个集成了所有功能的完整版本脚本
+
 import os
 import sys
 import requests
 import json
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
-# --- 从环境变量中读取机密信息 ---
+# --- 1. 从环境变量中读取配置 ---
+# DigitalPlat 账号信息
 DP_EMAIL = os.getenv("DP_EMAIL")
 DP_PASSWORD = os.getenv("DP_PASSWORD")
-BARK_KEY = os.getenv("BARK_KEY") # 新增：读取 Bark Key
-BARK_SERVER = os.getenv("BARK_SERVER") # 新增：读取自建 Bark 服务器地址
 
-# --- DigitalPlat 网站 URL ---
+# Bark 通知配置 (支持官方及自建服务器)
+BARK_KEY = os.getenv("BARK_KEY")
+BARK_SERVER = os.getenv("BARK_SERVER") # 可选, 您的自建 Bark 服务器地址
+
+# --- 2. 网站固定 URL ---
 LOGIN_URL = "https://dash.domain.digitalplat.org/auth/login"
 DOMAINS_URL = "https://dash.domain.digitalplat.org/panel/main?page=%2Fpanel%2Fdomains"
 
-# --- 新增：Bark 通知函数 ---
+
 def send_bark_notification(title, body):
-    """发送 Bark 推送通知（支持自建服务器）"""
+    """
+    发送 Bark 推送通知。
+    支持自建服务器地址。
+    """
     if not BARK_KEY:
         print("信息: BARK_KEY 未设置，跳过发送通知。")
         return
 
-    # 判断使用哪个服务器地址：如果 BARK_SERVER 已设置，则使用它；否则，使用默认公共地址。
+    # 如果用户设置了 BARK_SERVER，则使用该地址，否则使用官方公共地址
     server_url = BARK_SERVER if BARK_SERVER else "https://api.day.app"
     
     # 使用 rstrip('/') 清理末尾可能存在的斜杠，让地址拼接更健壮
     api_url = f"{server_url.rstrip('/')}/{BARK_KEY}"
+
+    print(f"正在向 Bark 服务器 {server_url} 发送通知: {title}")
     
-    print(f"正在发送 Bark 通知: {title}")
     try:
-        url = f"https://api.day.app/{BARK_KEY}"
         payload = {
             "title": title,
             "body": body,
-            "group": "DigitalPlat Renew" # 通知分组
+            "group": "DigitalPlat Renew"  # 在 Bark App 中将通知分组
         }
-        response = requests.post(url, json=payload, timeout=10)
-        response.raise_for_status()
+        response = requests.post(api_url, json=payload, timeout=10)
+        response.raise_for_status()  # 如果请求失败 (例如 4xx, 5xx 错误) 则抛出异常
         print("Bark 通知已成功发送。")
     except requests.exceptions.RequestException as e:
         print(f"发送 Bark 通知时发生网络错误: {e}")
@@ -46,12 +55,16 @@ def send_bark_notification(title, body):
 
 
 def run_renewal():
-    """主执行函数，运行续期流程"""
+    """
+    主执行函数，运行完整的登录和续期流程。
+    """
+    # 检查必要的环境变量是否设置
     if not DP_EMAIL or not DP_PASSWORD:
-        print("错误：环境变量 DP_EMAIL 或 DP_PASSWORD 未设置。")
+        print("错误：环境变量 DP_EMAIL 或 DP_PASSWORD 未设置。请在 GitHub Secrets 中配置。")
         sys.exit(1)
 
-    renewed_domains = [] # 新增：用于存储成功续期的域名列表
+    # 用于存储成功续期的域名列表
+    renewed_domains = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -61,40 +74,44 @@ def run_renewal():
         page = context.new_page()
 
         try:
-            # --- 1. 登录 ---
+            # --- 步骤 1: 登录 ---
             print("正在导航到登录页面...")
             page.goto(LOGIN_URL, wait_until="networkidle")
 
-            # --- 新增：处理“真人验证”点击 ---
-            # !!! 重要：请将下面的 'YOUR_SELECTOR_HERE' 替换为您在第1步中找到的真实选择器 !!!
+            # --- 步骤 1.1: 处理“真人验证”点击 ---
+            #
+            # !!! 这是您唯一需要手动修改的地方 !!!
+            # 请用您浏览器“检查”功能找到的真实选择器替换下面的 'YOUR_SELECTOR_HERE'
+            # 例如: "#human_verify" 或 "label:has-text('我是人类')"
+            #
             VERIFICATION_SELECTOR = "#cb-lb" 
             
             print("正在尝试点击“真人验证”框...")
             try:
-                # 设置一个较短的超时时间（例如5秒）
-                # 如果验证框存在，就点击它
+                # 设置一个较短的超时时间（例如20秒），以防验证框不出现
                 page.locator(VERIFICATION_SELECTOR).click(timeout=20000)
                 print("“真人验证”框已成功点击。")
             except PlaywrightTimeoutError:
-                # 如果5秒内没找到这个元素，就认为它不存在，然后打印一条信息并继续
+                # 如果5秒内没找到元素，说明它可能不存在，直接继续即可
                 print("信息：“真人验证”框未出现，直接继续登录。")
-                
-            # --- 登录流程继续 ---    
+            
+            # --- 步骤 1.2: 填写表单并登录 ---
             print("正在填写登录信息...")
             page.fill("input#username", DP_EMAIL)
             page.fill("input#password", DP_PASSWORD)
+
             print("正在点击登录按钮...")
             page.click("button#login")
+            
             print("正在等待登录确认...")
             page.wait_for_url("**/clientarea.php", timeout=30000)
             print("登录成功！")
 
-            # --- 2. 导航到域名列表 ---
+            # --- 步骤 2: 导航到域名列表并开始检查 ---
             print("\n正在导航到域名管理页面...")
             page.goto(DOMAINS_URL, wait_until="networkidle")
             print("已到达域名列表。")
 
-            # --- 3. 查找并处理可续期的域名 ---
             domain_rows = page.locator("tr[onclick*='window.location=']").all()
             if not domain_rows:
                 print("未找到任何域名。")
@@ -107,45 +124,42 @@ def run_renewal():
 
                     manage_button = row.locator("a.btn.btn-sm:has-text('Manage')")
                     if manage_button.count() > 0:
-                        print(f"找到管理按钮，正在点击进入 {domain_name} 的详情页面...")
+                        print(f"找到管理按钮，正在进入 {domain_name} 的详情页面...")
                         manage_button.click()
                         page.wait_for_load_state("networkidle")
+                        
                         renew_link = page.locator("a[href*='renewdomain']")
                         if renew_link.count() > 0:
-                            print("找到续期链接，正在点击...")
+                            print("找到续期链接，开始续期流程...")
                             renew_link.click()
                             page.wait_for_load_state("networkidle")
+                            
                             order_button = page.locator("button:has-text('Order Now'), button:has-text('Continue')").first
                             if order_button.count() > 0:
-                                print("找到订单按钮，正在提交续期订单...")
                                 order_button.click()
                                 page.wait_for_load_state("networkidle")
+                                
                                 agree_checkbox = page.locator("input[name='accepttos']")
                                 if agree_checkbox.count() > 0:
-                                    print("勾选同意条款...")
                                     agree_checkbox.check()
+                                
                                 checkout_button = page.locator("button#checkout")
                                 if checkout_button.count() > 0:
-                                    print("正在点击最终确认按钮...")
                                     checkout_button.click()
                                     page.wait_for_load_state("networkidle")
+                                    
                                     if "Order Confirmation" in page.inner_text("body"):
                                         print(f"成功！域名 {domain_name} 续期订单已提交。")
-                                        renewed_domains.append(domain_name) # 修改：记录续期成功的域名
+                                        renewed_domains.append(domain_name)
                                     else:
                                         print(f"警告：域名 {domain_name} 最终确认失败，请检查网站流程。")
-                                else:
-                                    print("未找到最终确认按钮，可能续期流程已变。")
-                            else:
-                                print("在续期页面未找到订单按钮，可能此域名当前无需续期。")
                         else:
                             print("在此域名详情页未找到续期链接，可能无需续期。")
+                        
                         print("正在返回域名列表...")
                         page.goto(DOMAINS_URL, wait_until="networkidle")
-                    else:
-                        print("未找到管理按钮，跳过此域名。")
-            
-            # --- 新增：发送成功摘要通知 ---
+
+            # --- 步骤 3: 发送最终执行结果通知 ---
             print("\n--- 检查完成 ---")
             if not renewed_domains:
                 title = "DigitalPlat 续期检查完成"
@@ -156,16 +170,18 @@ def run_renewal():
             send_bark_notification(title, body)
 
         except Exception as e:
-            # --- 新增：发送错误通知 ---
+            # --- 步骤 4: 统一错误处理 ---
             error_message = f"脚本执行时发生错误: {type(e).__name__}"
             print(f"错误: {error_message}")
             page.screenshot(path="error_screenshot.png")
             print("已保存截图 'error_screenshot.png' 以供调试。")
-            send_bark_notification("DigitalPlat 续期脚本错误", f"{error_message}\n请检查 GitHub Actions 日志获取详情。")
-            sys.exit(1) # 错误退出
+            send_bark_notification("DigitalPlat 脚本错误", f"{error_message}\n请检查 GitHub Actions 日志获取详情。")
+            sys.exit(1) # 以错误码退出，让 Actions 知道任务失败了
         finally:
+            # --- 步骤 5: 确保浏览器被关闭 ---
             print("关闭浏览器...")
             browser.close()
+
 
 if __name__ == "__main__":
     run_renewal()
