@@ -88,8 +88,8 @@ def run_renewal():
             
             print("正在尝试点击“真人验证”框...")
             try:
-                # 设置一个较短的超时时间（例如20秒），以防验证框不出现
-                page.locator(VERIFICATION_SELECTOR).click(timeout=20000)
+                # 设置一个较短的超时时间（例如120秒），以防验证框不出现
+                page.locator(VERIFICATION_SELECTOR).click(timeout=120000)
                 print("“真人验证”框已成功点击。")
             except PlaywrightTimeoutError:
                 # 如果5秒内没找到元素，说明它可能不存在，直接继续即可
