@@ -64,6 +64,22 @@ def run_renewal():
             # --- 1. 登录 ---
             print("正在导航到登录页面...")
             page.goto(LOGIN_URL, wait_until="networkidle")
+
+            # --- 新增：处理“真人验证”点击 ---
+            # !!! 重要：请将下面的 'YOUR_SELECTOR_HERE' 替换为您在第1步中找到的真实选择器 !!!
+            VERIFICATION_SELECTOR = "#cb-lb" 
+            
+            print("正在尝试点击“真人验证”框...")
+            try:
+                # 设置一个较短的超时时间（例如5秒）
+                # 如果验证框存在，就点击它
+                page.locator(VERIFICATION_SELECTOR).click(timeout=20000)
+                print("“真人验证”框已成功点击。")
+            except PlaywrightTimeoutError:
+                # 如果5秒内没找到这个元素，就认为它不存在，然后打印一条信息并继续
+                print("信息：“真人验证”框未出现，直接继续登录。")
+                
+            # --- 登录流程继续 ---    
             print("正在填写登录信息...")
             page.fill("input#username", DP_EMAIL)
             page.fill("input#password", DP_PASSWORD)
