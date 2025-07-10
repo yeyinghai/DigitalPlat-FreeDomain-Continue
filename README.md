@@ -1,4 +1,4 @@
-# DigitalPlat 免费域名自动续期脚本
+# DigitalPlat 免费域名自动续期脚本(暂时跳不过去进入页面的验证，等待修改)
 
 这是一个使用 Python 和 Playwright 编写的脚本，旨在自动续期您在 [DigitalPlat](https://dash.domain.digitalplat.org/) 上的免费域名。脚本通过 GitHub Actions 实现云端定时运行，无需您自己准备服务器。
 
