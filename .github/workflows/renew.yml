@@ -2,9 +2,12 @@ name: 自动续期DigitalPlat Free Domains
 
 on:
   schedule:
+    # 每 15 天运行一次。免费域名通常是30天，15天运行一次足够了
+    # cron 语法: '分钟 小时 天 月 星期'
     - cron: '0 8 */15 * *'
   
-workflow_dispatch:
+  # 允许在 GitHub Actions 页面手动触发此工作流，方便测试
+  workflow_dispatch:
 
 jobs:
   renew:
