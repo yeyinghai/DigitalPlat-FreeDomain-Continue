@@ -1,0 +1,47 @@
+name: 自动续期DigitalPlat Free Domains
+
+on:
+  schedule:
+    # 每 15 天运行一次。免费域名通常是30天，15天运行一次足够了
+    # cron 语法: '分钟 小时 天 月 星期'
+    - cron: '0 8 */15 * *'
+  
+  # 允许在 GitHub Actions 页面手动触发此工作流，方便测试
+  workflow_dispatch:
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers and dependencies
+        # 这是关键一步：安装 Playwright 需要的浏览器核心和系统依赖
+        run: playwright install --with-deps chromium
+
+      - name: Run Renewal Script
+        # 将 GitHub Secrets 作为环境变量传递给 Python 脚本
+        env:
+          DP_EMAIL: ${{ secrets.DP_EMAIL }}
+          DP_PASSWORD: ${{ secrets.DP_PASSWORD }}
+        run: python renew.py
+
+      - name: Upload error screenshot
+        # 如果脚本失败并生成了截图, 将其作为构建产物上传, 方便调试
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-screenshot
+          path: error_screenshot.png
