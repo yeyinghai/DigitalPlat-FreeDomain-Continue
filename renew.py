@@ -78,22 +78,17 @@ def run_renewal():
             print("正在导航到登录页面...")
             page.goto(LOGIN_URL, wait_until="networkidle")
 
-            # --- 步骤 1.1: 处理“真人验证”点击 ---
-            #
-            # !!! 这是您唯一需要手动修改的地方 !!!
-            # 请用您浏览器“检查”功能找到的真实选择器替换下面的 'YOUR_SELECTOR_HERE'
-            # 例如: "#human_verify" 或 "label:has-text('我是人类')"
-            #
-            VERIFICATION_SELECTOR = "#cb-lb" 
-            
-            print("正在尝试点击“真人验证”框...")
+            # --- 步骤 1.1: 等待人机验证自动跳转 ---
+            print("等待人机验证页自动跳转到输入账号页面...")
             try:
-                # 设置一个较短的超时时间（例如120秒），以防验证框不出现
-                page.locator(VERIFICATION_SELECTOR).click(timeout=360000)
-                print("“真人验证”框已成功点击。")
+                # 等待用户名输入框出现，最长120秒（根据你环境可调整）
+                page.wait_for_selector("input#username", timeout=120000)
+                print("检测到登录表单，已进入账号密码输入页面。")
             except PlaywrightTimeoutError:
-                # 如果5秒内没找到元素，说明它可能不存在，直接继续即可
-                print("信息：“真人验证”框未出现，直接继续登录。")
+                print("超时：未检测到登录输入框，可能人机验证页面未通过。")
+                page.screenshot(path="login_timeout.png")
+                send_bark_notification("DigitalPlat 登录失败", "未能自动跳过人机验证，请检查环境。")
+                sys.exit(1)
             
             # --- 步骤 1.2: 填写表单并登录 ---
             print("正在填写登录信息...")
