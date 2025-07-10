@@ -9,17 +9,24 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 DP_EMAIL = os.getenv("DP_EMAIL")
 DP_PASSWORD = os.getenv("DP_PASSWORD")
 BARK_KEY = os.getenv("BARK_KEY") # 新增：读取 Bark Key
+BARK_SERVER = os.getenv("BARK_SERVER") # 新增：读取自建 Bark 服务器地址
 
 # --- DigitalPlat 网站 URL ---
-LOGIN_URL = "https://my.digitalplat.com/login.php"
-DOMAINS_URL = "https://my.digitalplat.com/clientarea.php?action=domains"
+LOGIN_URL = "https://dash.domain.digitalplat.org/auth/login"
+DOMAINS_URL = "https://dash.domain.digitalplat.org/panel/main?page=%2Fpanel%2Fdomains"
 
 # --- 新增：Bark 通知函数 ---
 def send_bark_notification(title, body):
-    """发送 Bark 推送通知"""
+    """发送 Bark 推送通知（支持自建服务器）"""
     if not BARK_KEY:
         print("信息: BARK_KEY 未设置，跳过发送通知。")
         return
+
+    # 判断使用哪个服务器地址：如果 BARK_SERVER 已设置，则使用它；否则，使用默认公共地址。
+    server_url = BARK_SERVER if BARK_SERVER else "https://api.day.app"
+    
+    # 使用 rstrip('/') 清理末尾可能存在的斜杠，让地址拼接更健壮
+    api_url = f"{server_url.rstrip('/')}/{BARK_KEY}"
     
     print(f"正在发送 Bark 通知: {title}")
     try:
