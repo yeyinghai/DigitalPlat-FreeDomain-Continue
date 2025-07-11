@@ -44,6 +44,11 @@ jobs:
       - name: Install Playwright browsers and dependencies
         run: playwright install --with-deps chromium
 
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install  
+
       # 第5步：运行续期脚本
       # 执行我们的核心 Python 脚本。
       - name: Run Renewal Script
