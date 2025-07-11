@@ -5,8 +5,9 @@
 
 import os
 import sys
+import asyncio
 import requests
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 # --- 1. 从环境变量中读取配置 ---
 # DigitalPlat 账号信息
@@ -156,7 +157,7 @@ def run_renewal():
 
                         # 查找续期链接
                         renew_link = page.locator("a[href*='renewdomain']")
-                        if await renew_link.count() > 0:
+                        if renew_link.count() > 0:
                             print("找到续期链接，开始续期流程...")
                             # 点击续期链接并等待页面加载
                             with page.expect_navigation(wait_until="networkidle"):
