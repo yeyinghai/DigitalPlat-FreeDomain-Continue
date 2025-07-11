@@ -1,41 +1,48 @@
-name: Renew DigitalPlat Free Domains
-
+name: Domain Renewal
 on:
   schedule:
-    - cron: '0 8 */15 * *'
-  workflow_dispatch:
-
+    - cron: '0 0 * * *'  # 每天运行一次
+  workflow_dispatch:  # 允许手动触发
 jobs:
   renew:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.x'
 
-      # 合并了重复的依赖安装步骤
-      - name: Install dependencies and Playwright
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
+
+      - name: Clear Playwright cache
+        run: |
+          rm -rf /home/runner/.cache/ms-playwright
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          playwright install --with-deps chromium
+          pip install --upgrade playwright requests
 
-      - name: Run Renewal Script
+      - name: Install Playwright browsers
+        run: |
+          playwright install firefox
+          playwright install-deps firefox
+
+      - name: Verify Playwright installation
+        run: |
+          playwright --version
+          ls -la /home/runner/.cache/ms-playwright/firefox-*
+
+      - name: Run renew script
+        run: python renew.py
         env:
           DP_EMAIL: ${{ secrets.DP_EMAIL }}
           DP_PASSWORD: ${{ secrets.DP_PASSWORD }}
           BARK_KEY: ${{ secrets.BARK_KEY }}
           BARK_SERVER: ${{ secrets.BARK_SERVER }}
-        run: python renew.py
-
-      - name: Upload error screenshot
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: error-screenshot
-          path: error_screenshot.png
