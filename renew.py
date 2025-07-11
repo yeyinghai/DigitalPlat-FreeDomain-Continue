@@ -96,7 +96,7 @@ async def run_renewal():
             max_attempts = 3
             for attempt in range(max_attempts):
                 try:
-                    await page.wait_for_selector("input#username", timeout=180000)
+                    await page.wait_for_selector("input[name='email']", timeout=180000)
                     print("检测到登录表单，已进入账号密码输入页面。")
                     break
                 except PlaywrightTimeoutError:
@@ -114,7 +114,7 @@ async def run_renewal():
             print("正在填写登录信息...")
             await asyncio.sleep(random.uniform(1, 3))  # 随机延迟
             await page.mouse.move(random.randint(100, 500), random.randint(100, 500))  # 模拟鼠标
-            await page.fill("input#username", DP_EMAIL)
+            await page.fill("input#[name='email']", DP_EMAIL)
             await page.fill("input#password", DP_PASSWORD)
             
             print("正在点击登录按钮...")
