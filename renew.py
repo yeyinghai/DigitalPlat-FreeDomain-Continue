@@ -92,27 +92,32 @@ async def run_renewal():
             await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
 
             # --- 步骤 2.1: 等待人机验证自动跳转 ---
-            # 这是处理 "Verifying you are human" 的关键步骤。
-            # 我们不直接与验证页面交互，而是等待它跳转后，登录页面的关键元素（用户名输入框）出现。
             print("等待人机验证页自动跳转到登录表单...")
-            try:
-                # 等待用户名输入框出现，最长120秒（根据你环境可调整）
-                await page.wait_for_selector("input#username", timeout=120000)
-                print("检测到登录表单，已进入账号密码输入页面。")
-            except PlaywrightTimeoutError:
-                print("超时错误：在120秒内未检测到登录输入框。")
-                print("可能原因：1. 人机验证失败；2. 网络问题；3. 网站结构已更改。")
-                await page.screenshot(path="login_timeout_error.png")
-                send_bark_notification("DigitalPlat 登录失败", "未能自动跳过人机验证，请检查环境或查看截图。")
-                sys.exit(1)
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                try:
+                    await page.wait_for_selector("input#username", timeout=180000)
+                    print("检测到登录表单，已进入账号密码输入页面。")
+                    break
+                except PlaywrightTimeoutError:
+                    print(f"尝试 {attempt + 1} 失败：在180秒内未检测到登录输入框。")
+                    if attempt == max_attempts - 1:
+                        print("所有尝试均失败，退出。")
+                        await page.screenshot(path="login_timeout_error.png")
+                        with open("login_timeout_page_source.html", "w", encoding="utf-8") as f:
+                            f.write(await page.content())
+                        send_bark_notification("DigitalPlat 登录失败", "多次尝试后未能跳过人机验证，请检查截图和页面源代码。")
+                        sys.exit(1)
+                    await asyncio.sleep(5)
             
             # --- 步骤 2.2: 填写表单并登录 ---
             print("正在填写登录信息...")
+            await asyncio.sleep(random.uniform(1, 3))  # 随机延迟
+            await page.mouse.move(random.randint(100, 500), random.randint(100, 500))  # 模拟鼠标
             await page.fill("input#username", DP_EMAIL)
             await page.fill("input#password", DP_PASSWORD)
-
+            
             print("正在点击登录按钮...")
-            # 点击登录后，等待导航到域名管理页面作为登录成功的标志
             async with page.expect_navigation(wait_until="networkidle", timeout=60000):
                 await page.click("button#login")
             
