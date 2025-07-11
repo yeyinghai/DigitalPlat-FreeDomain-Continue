@@ -2,12 +2,12 @@
 
 name: Renew DigitalPlat Free Domains
 
-# on:
+on:
   # 定时触发器：
   # 使用 cron 语法，表示在每隔15天的 08:00 (UTC时间) 运行一次。
   # 免费域名通常有效期为30天，每15天检查一次可以确保及时续期。
-  # schedule:
-    # - cron: '0 8 */15 * *'
+  schedule:
+    - cron: '0 8 */15 * *'
   
   # 手动触发器：
   # 允许您在 GitHub 仓库的 "Actions" 页面手动点击按钮来运行此工作流，非常方便进行测试。
