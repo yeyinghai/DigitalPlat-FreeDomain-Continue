@@ -6,6 +6,7 @@ import os
 import sys
 import asyncio
 import requests
+import random
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 # --- 1. 从环境变量中读取配置 ---
@@ -70,8 +71,6 @@ async def run_renewal():
     async with async_playwright() as p:
         try:
             # --- 步骤 1: 启动浏览器 ---
-            # 在 GitHub Actions 等自动化环境中必须使用 headless=True
-            # 在本地调试时，可以改为 headless=False 来观察浏览器操作
             print("正在启动浏览器...")
             browser = await p.firefox.launch(headless=True, args=[
                 '--disable-blink-features=AutomationControlled',
@@ -80,16 +79,24 @@ async def run_renewal():
                 '--window-size=1920,1080',
             ])
             context = await browser.new_context(
-                # 使用与浏览器匹配的 User-Agent
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0"
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
+                viewport_size={"width": 1920, "height": 1080},  # 设置视口大小
             )
             page = await context.new_page()
-            # 添加脚本以隐藏 webdriver 标志，增强反爬虫检测
+            
+            # 添加更多的反检测措施
             await page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            await page.add_init_script("window.navigator.chrome = { runtime: {} };")  # 模拟 Chrome
+            await page.add_init_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});")  # 模拟插件
+            await page.add_init_script("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});")  # 模拟语言
 
             # --- 步骤 2: 登录 ---
             print("正在导航到登录页面...")
             await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
+
+            # 模拟人类行为
+            await page.mouse.move(random.randint(100, 500), random.randint(100, 500))  # 随机鼠标移动
+            await asyncio.sleep(random.uniform(1, 3))  # 随机延迟
 
             # --- 步骤 2.1: 等待人机验证自动跳转 ---
             print("等待人机验证页自动跳转到登录表单...")
@@ -109,17 +116,15 @@ async def run_renewal():
                         send_bark_notification("DigitalPlat 登录失败", "多次尝试后未能跳过人机验证，请检查截图和页面源代码。")
                         sys.exit(1)
                     await asyncio.sleep(5)
-            
-            # --- 步骤 2.2: 填写表单并登录 ---
+
+            # 填写表单并登录
             print("正在填写登录信息...")
-            await asyncio.sleep(random.uniform(1, 3))  # 随机延迟
-            await page.mouse.move(random.randint(100, 500), random.randint(100, 500))  # 模拟鼠标
-            await page.fill("input#[name='email']", DP_EMAIL)
-            await page.fill("input#password", DP_PASSWORD)
+            await page.type("input[name='email']", DP_EMAIL, delay=random.uniform(50, 150))  # 模拟人类输入速度
+            await page.type("input[name='password']", DP_PASSWORD, delay=random.uniform(50, 150))  # 模拟人类输入速度
             
             print("正在点击登录按钮...")
             async with page.expect_navigation(wait_until="networkidle", timeout=60000):
-                await page.click("button#login")
+                await page.click("button[type='submit']")
             
             # 确认登录成功并已跳转到仪表盘
             # 检查页面URL或特定元素来确认
