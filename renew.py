@@ -78,9 +78,11 @@ async def run_renewal():
                 '--disable-gpu',
                 '--window-size=1920,1080',
             ])
-            context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0"
-)
-            page = await context.new_page(viewport_size={"width": 1920, "height": 1080})
+            context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
+            viewport_size={"width": 1920, "height": 1080}
+        )
+            page = await context.new_page()
             
             # 添加更多的反检测措施
             await page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
